@@ -19,12 +19,13 @@ many controllers.
 
 In the default configuration, the pulse widths can be adjusted from
 1000&nbsp;µs to 2020&nbsp;µs in 4&nbsp;µs steps. These limits can be
-changed by modifying the delays in `pulse.S`, which the constraints
-that:
+changed at compile-time, with the following constraints:
 
-* The step size should be a multiple of the clock cycle (0.125&nbsp;µs)
+* The minimum width can be no less than 100&nbsp;µs.
+* The step size should be a multiple of 0.125&nbsp;µs
   and can be no less than 3.25&nbsp;µs.
 * maximum width = (minimum width) + 255 × (step size).
+* This maximum can be no more than 3000&nbsp;µs.
 
 ## Caveats
 
@@ -102,6 +103,10 @@ The compilation can be customized with the following options:
 * `-DI2C_ADDRESS=...` sets the 7-bit slave I2C address. Default is
   `0x53` (because it's a “53RVO” controller).
 * `-DNO_PULLUP` disables the internal pullups on the I2C lines.
+* `-DPULSE_MIN=...` sets the minimum pulse width in clock cycles.
+  Minimum: 800 (100&nbsp;µs), default: 8000 (1000&nbsp;µs).
+* `-DPULSE_STEP=...` sets the step size for adjusting the pulse width.
+  Minimum: 26 (3.25&nbsp;µs), default: 32 (4&nbsp;µs).
 
 ## Usage
 
@@ -114,8 +119,9 @@ The chip exposes a set of 22 8-bit registers through the I2C interface:
 |    21    |     mode       |
 
 The “targets” are the values the set points should eventually reach. The
-width of the pulse sent to the servo is (1000 + 4 × set\_point)
-microseconds, ranging from 1.0&nbsp;ms to 2.02&nbsp;ms.
+width of the pulse sent to the servo is (minimum\_width + step\_size ×
+set\_point). In the default configuration, this is (1000 + 4 ×
+set\_point) microseconds, ranging from 1.0&nbsp;ms to 2.02&nbsp;ms.
 
 The “speed” is the maximum amount the set points can change on each
 update. As there are 50 updates per second, the time needed for the set
