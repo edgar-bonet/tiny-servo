@@ -131,7 +131,7 @@ targets.
 
 The “mode” should be either:
 * 0 = `IDLE`: the servos are not driven
-* 1 = `STAY`: the servos are driven at their current set points,
+* 1 = `HOLD`: the servos are driven at their current set points,
   changing the targets will have no immediate effect
 * 3 = `MOVE`: the set points will be moved towards their respective
   targets at the specified speed.

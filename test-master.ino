@@ -27,7 +27,7 @@
 
 /* Possible values for the MODE register. */
 #define MODE_IDLE        0
-#define MODE_STAY        1
+#define MODE_HOLD        1
 #define MODE_MOVE        3
 
 void setup() {
