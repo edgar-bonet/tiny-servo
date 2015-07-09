@@ -16,8 +16,8 @@
  *   pin:   PD0-PD7, PB0-PB7, PC0-PC3
  *
  * I2C interface:
- *   The interface exposes a set of 22 8-bit registers, numbered from 0
- *   to 21, with an auto-incrementing pointer.
+ *   The interface exposes a set of 24 8-bit registers, numbered from 0
+ *   to 23, with an auto-incrementing pointer.
  *
  * Register map:
  *   0-19: Targets for servos 0-19. These are the values the set points
@@ -31,6 +31,10 @@
  *       0: do not drive the servos
  *       1: keep the current set point
  *       3: move the set point towards the target at the specified speed
+ *   22: Status (read only). Either:
+ *       0: all the set points have reached their respective targets
+ *       1: at least one set point has not yet reached its target
+ *   23: Version (read-only), should return 1.
  *
  * Copyright (c) 2015 Edgar Bonet Orozco.
  * This file is part of the Tiny Servo Controller project, licensed
@@ -49,17 +53,25 @@
 #ifndef I2C_ADDRESS
 #  define I2C_ADDRESS 0x53  /* like "53RVOS" ;-) */
 #endif
+#define VERSION       1
+#define REG_COUNT    24  /* all registers */
+#define REG_RW_COUNT 22  /* registers accessible R/W */
 
 /* User-visible registers. */
-volatile uint8_t regs[22];
+volatile uint8_t regs[REG_COUNT];
 
 /* Special registers. */
-#define REG_SPEED 20
-#define REG_MODE  21
+#define REG_SPEED   20
+#define REG_MODE    21
+#define REG_STATUS  22
+#define REG_VERSION 23
 
 /* Bits of the MODE register */
 #define MODE_DRIVE  0x01
 #define MODE_UPDATE 0x02
+
+/* Bits of the status register. */
+#define STATE_SWEEPING 0x01
 
 
 /***********************************************************************
@@ -90,7 +102,7 @@ ISR(TWI_vect)
         case TW_SR_DATA_NACK:
         case TW_SR_GCALL_DATA_NACK:
             if (address_valid) {
-                if (address < 22)
+                if (address < REG_RW_COUNT)
                     regs[address++] = TWDR;
                 /* else reset TWEA bit to send NACK? */
             }
@@ -103,7 +115,7 @@ ISR(TWI_vect)
         /* Slave transmitter. */
         case TW_ST_SLA_ACK:
         case TW_ST_DATA_ACK:
-            TWDR = address<22 ? regs[address++] : 0;
+            TWDR = address<REG_COUNT ? regs[address++] : 0;
             break;
 
         /* Error. */
@@ -130,6 +142,7 @@ extern void pulse(volatile uint8_t *port,
 
 int main(void)
 {
+    regs[REG_VERSION] = VERSION;
 
     /* Set the clock to 8 MHz. */
     CLKPR = _BV(CLKPCE);    /* enable prescaler change */
@@ -183,22 +196,32 @@ int main(void)
         if (mode & MODE_UPDATE) {
             uint8_t i;
             uint8_t speed = regs[REG_SPEED];
+            uint8_t sweeping = 0;
             for (i = 0; i < 20; i++) {
                 uint8_t target = regs[i];
                 if (set_point[i] < target) {
                     if (set_point[i] + speed > target)
                         set_point[i] = target;
-                    else
+                    else {
                         set_point[i] += speed;
+                        sweeping = STATE_SWEEPING;
+                    }
                 }
                 else {
                     if (set_point[i] - speed < target)
                         set_point[i] = target;
-                    else
+                    else {
                         set_point[i] -= speed;
+                        sweeping = STATE_SWEEPING;
+                    }
                 }
             }
-        }
 
+            /* Update status. */
+            cli();
+            regs[REG_STATUS] = (regs[REG_STATUS] & ~STATE_SWEEPING)
+                             | sweeping;
+            sei();
+        }
     }
 }

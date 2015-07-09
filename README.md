@@ -110,13 +110,15 @@ The compilation can be customized with the following options:
 
 ## Usage
 
-The chip exposes a set of 22 8-bit registers through the I2C interface:
+The chip exposes a set of 24 8-bit registers through the I2C interface:
 
-| register |    function    |
-|:--------:|:--------------:|
-|  0 – 19  | targets 0 – 19 |
-|    20    |     speed      |
-|    21    |     mode       |
+| register | access |    function    |
+|:--------:|:------:|:--------------:|
+|  0 – 19  |  R/W   | targets 0 – 19 |
+|    20    |  R/W   |    speed       |
+|    21    |  R/W   |    mode        |
+|    22    |   R    |    status      |
+|    23    |   R    |    version     |
 
 The “targets” are the values the set points should eventually reach. The
 width of the pulse sent to the servo is (minimum\_width + step\_size ×
@@ -135,6 +137,13 @@ The “mode” should be either:
   changing the targets will have no immediate effect
 * 3 = `MOVE`: the set points will be moved towards their respective
   targets at the specified speed.
+
+The “status” register is read-only. It can be either:
+* 0: all the set points have reached their respective targets
+* 1: at least one set point has not yet reached its target
+
+The “version” register is also read-only. It should read 1 with the
+current firmware version.
 
 In order to write one or several registers, the I2C master has to
 issue the following on the bus:
